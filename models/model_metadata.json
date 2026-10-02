@@ -1,0 +1,69 @@
+{
+  "feature_columns": [
+    "packet_count",
+    "byte_count",
+    "duration",
+    "bytes_per_second",
+    "packets_per_second",
+    "connection_count",
+    "failed_connection_count",
+    "syn_count",
+    "rst_count",
+    "average_packet_size"
+  ],
+  "evaluation_metrics": {
+    "Logistic Regression": {
+      "type": "Supervised Linear",
+      "accuracy": 0.965,
+      "precision": 1.0,
+      "recall": 0.8817,
+      "f1_score": 0.9371,
+      "confusion_matrix": [
+        [
+          845,
+          0
+        ],
+        [
+          42,
+          313
+        ]
+      ]
+    },
+    "Random Forest": {
+      "type": "Supervised Ensemble Tree",
+      "accuracy": 0.99,
+      "precision": 0.9971,
+      "recall": 0.969,
+      "f1_score": 0.9829,
+      "confusion_matrix": [
+        [
+          844,
+          1
+        ],
+        [
+          11,
+          344
+        ]
+      ]
+    },
+    "Isolation Forest": {
+      "type": "Unsupervised Outlier Tree",
+      "accuracy": 0.8983,
+      "precision": 0.7877,
+      "recall": 0.8986,
+      "f1_score": 0.8395,
+      "confusion_matrix": [
+        [
+          759,
+          86
+        ],
+        [
+          36,
+          319
+        ]
+      ]
+    }
+  },
+  "train_samples": 4800,
+  "test_samples": 1200
+}

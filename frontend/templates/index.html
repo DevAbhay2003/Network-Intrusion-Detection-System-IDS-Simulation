@@ -1,0 +1,484 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>SOC Network Intrusion Detection System (IDS)</title>
+  <link rel="stylesheet" href="/static/css/style.css">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+</head>
+<body>
+
+  <!-- Top Header Navigation -->
+  <header class="soc-header">
+    <div class="brand">
+      <div class="brand-icon">IDS</div>
+      <div>
+        <div class="brand-title">DEFENSIVE NETWORK IDS SIMULATOR</div>
+        <div class="brand-subtitle">SOC Security Operations & Threat Monitoring Console</div>
+      </div>
+    </div>
+    <div class="header-actions">
+      <div class="live-badge">
+        <span class="pulse-dot"></span>
+        <span>DEFENSIVE ENGINE ONLINE</span>
+      </div>
+      <button class="btn btn-secondary" onclick="refreshDashboardData()">Refresh</button>
+      <button class="btn btn-secondary" style="border-color: #ef4444; color: #ef4444;" onclick="resetDatabase()">Clear DB</button>
+    </div>
+  </header>
+
+  <!-- Main Workspace Container -->
+  <div class="container">
+
+    <!-- Navigation Tabs -->
+    <nav class="tabs-nav">
+      <button class="tab-btn active" data-target="tab-overview">Overview &amp; Analytics</button>
+      <button class="tab-btn" data-target="tab-alerts">Alerts Queue</button>
+      <button class="tab-btn" data-target="tab-flows">Live Traffic Stream</button>
+      <button class="tab-btn" data-target="tab-rules">Detection Signatures</button>
+      <button class="tab-btn" data-target="tab-scenarios">Scenario Generator</button>
+    </nav>
+
+    <!-- Top Key Metrics Cards (Always Visible) -->
+    <div class="cards-grid">
+      <div class="metric-card">
+        <div class="metric-title">Total Network Flows</div>
+        <div class="metric-value" id="statTotalFlows">0</div>
+        <div class="metric-sub">Monitored flow records</div>
+      </div>
+      <div class="metric-card">
+        <div class="metric-title">Normal Traffic</div>
+        <div class="metric-value" style="color: #10b981;" id="statNormalFlows">0</div>
+        <div class="metric-sub">Within baseline parameters</div>
+      </div>
+      <div class="metric-card">
+        <div class="metric-title">Suspicious Traffic</div>
+        <div class="metric-value" style="color: #ef4444;" id="statSuspiciousFlows">0</div>
+        <div class="metric-sub">Flagged anomalies &amp; rules</div>
+      </div>
+      <div class="metric-card">
+        <div class="metric-title">Open Alerts</div>
+        <div class="metric-value" style="color: #f59e0b;" id="statOpenAlerts">0</div>
+        <div class="metric-sub">Pending SOC triage</div>
+      </div>
+      <div class="metric-card">
+        <div class="metric-title">Critical Alerts</div>
+        <div class="metric-value" style="color: #f43f5e;" id="statCriticalAlerts">0</div>
+        <div class="metric-sub">Immediate action required</div>
+      </div>
+      <div class="metric-card">
+        <div class="metric-title">Avg Risk Score</div>
+        <div class="metric-value" style="color: #38bdf8;" id="statAvgRisk">0 / 100</div>
+        <div class="metric-sub">Composite hybrid posture</div>
+      </div>
+    </div>
+
+    <!-- TAB 1: OVERVIEW & ANALYTICS -->
+    <div id="tab-overview" class="tab-pane" style="display: block;">
+
+      <!-- Real-Time Traffic Simulation Control Bar -->
+      <div class="sim-panel">
+        <div class="sim-panel-title">
+          <span>Traffic Flow Simulator Controls</span>
+          <span style="font-size: 0.8rem; font-weight: 500;">Status: <strong id="simStatusBadge">IDLE</strong></span>
+        </div>
+        <div class="sim-buttons-group">
+          <label style="font-size: 0.8rem; color: #94a3b8;">Mode:</label>
+          <select id="simModeSelect" class="btn btn-secondary" style="padding: 0.35rem 0.6rem;">
+            <option value="mixed">Mixed (Normal + Suspicious)</option>
+            <option value="normal">Normal Baseline Only</option>
+          </select>
+          <label style="font-size: 0.8rem; color: #94a3b8; margin-left: 0.5rem;">Speed:</label>
+          <select id="simSpeedSelect" class="btn btn-secondary" style="padding: 0.35rem 0.6rem;">
+            <option value="fast">Fast (0.8s interval)</option>
+            <option value="slow">Slow (2.5s interval)</option>
+          </select>
+          <button id="simToggleBtn" class="btn btn-primary" onclick="startSimulator()">Start Continuous Simulator</button>
+          <span style="border-left: 1px solid #334155; height: 24px; margin: 0 0.5rem;"></span>
+          <span style="font-size: 0.8rem; color: #94a3b8;">Quick Scenario Injections:</span>
+          <button class="btn btn-scenario" onclick="triggerScenario('NORMAL_WEB')">HTTPS Web</button>
+          <button class="btn btn-scenario" onclick="triggerScenario('NORMAL_DNS')">DNS Query</button>
+          <button class="btn btn-scenario" onclick="triggerScenario('HIGH_CONNECTION_RATE')">High Conn Rate</button>
+          <button class="btn btn-scenario" onclick="triggerScenario('REPEATED_FAILED_CONNECTIONS')">Failed Conns</button>
+          <button class="btn btn-scenario" onclick="triggerScenario('MULTI_PORT_PROBING_PATTERN')">Port Probing</button>
+          <button class="btn btn-scenario" onclick="triggerScenario('SYN_HEAVY_PATTERN')">SYN-Heavy</button>
+          <button class="btn btn-scenario" onclick="triggerScenario('HIGH_TRAFFIC_VOLUME')">High Volume</button>
+        </div>
+      </div>
+
+      <!-- 8 SOC Charts Grid -->
+      <div class="charts-grid">
+        <!-- 1. Traffic Over Time -->
+        <div class="chart-card">
+          <div class="chart-title">
+            <span>Network Traffic Throughput Over Time</span>
+            <span style="font-size: 0.75rem; color: #94a3b8;">Packets vs KB</span>
+          </div>
+          <div class="chart-wrapper">
+            <canvas id="chartTraffic"></canvas>
+          </div>
+        </div>
+
+        <!-- 2. Normal vs Suspicious -->
+        <div class="chart-card">
+          <div class="chart-title">
+            <span>Traffic Classification Distribution</span>
+            <span style="font-size: 0.75rem; color: #94a3b8;">Normal vs Suspicious</span>
+          </div>
+          <div class="chart-wrapper">
+            <canvas id="chartNormalSuspicious"></canvas>
+          </div>
+        </div>
+
+        <!-- 3. Alerts by Severity -->
+        <div class="chart-card">
+          <div class="chart-title">
+            <span>Alerts by Severity Level</span>
+            <span style="font-size: 0.75rem; color: #94a3b8;">INFO to CRITICAL</span>
+          </div>
+          <div class="chart-wrapper">
+            <canvas id="chartSeverity"></canvas>
+          </div>
+        </div>
+
+        <!-- 4. Top Alert Types -->
+        <div class="chart-card">
+          <div class="chart-title">
+            <span>Top Triggered Alert Types</span>
+            <span style="font-size: 0.75rem; color: #94a3b8;">Detection Rules</span>
+          </div>
+          <div class="chart-wrapper">
+            <canvas id="chartAlertTypes"></canvas>
+          </div>
+        </div>
+
+        <!-- 5. Protocols -->
+        <div class="chart-card">
+          <div class="chart-title">
+            <span>Protocol Distribution</span>
+            <span style="font-size: 0.75rem; color: #94a3b8;">Transport Layer</span>
+          </div>
+          <div class="chart-wrapper">
+            <canvas id="chartProtocols"></canvas>
+          </div>
+        </div>
+
+        <!-- 6. Destination Ports -->
+        <div class="chart-card">
+          <div class="chart-title">
+            <span>Destination Port Distribution</span>
+            <span style="font-size: 0.75rem; color: #94a3b8;">Service Targets</span>
+          </div>
+          <div class="chart-wrapper">
+            <canvas id="chartPorts"></canvas>
+          </div>
+        </div>
+
+        <!-- 7. Top Source IPs -->
+        <div class="chart-card">
+          <div class="chart-title">
+            <span>Top Source IPs Generating Alerts</span>
+            <span style="font-size: 0.75rem; color: #94a3b8;">Threat Origins</span>
+          </div>
+          <div class="chart-wrapper">
+            <canvas id="chartTopSources"></canvas>
+          </div>
+        </div>
+
+        <!-- 8. Risk Distribution -->
+        <div class="chart-card">
+          <div class="chart-title">
+            <span>Risk Score Distribution</span>
+            <span style="font-size: 0.75rem; color: #94a3b8;">5 Defense Tiers</span>
+          </div>
+          <div class="chart-wrapper">
+            <canvas id="chartRiskDistribution"></canvas>
+          </div>
+        </div>
+      </div>
+
+      <!-- Recent Alerts Table (Overview Quick View) -->
+      <div class="table-card">
+        <div class="chart-title" style="margin-bottom: 0.75rem;">
+          <span>Recent Security Alerts Queue</span>
+          <span style="font-size: 0.8rem; color: #38bdf8; cursor: pointer;" onclick="document.querySelector('[data-target=\'tab-alerts\']').click()">View Full Queue &rarr;</span>
+        </div>
+        <table class="soc-table">
+          <thead>
+            <tr>
+              <th>Alert ID</th>
+              <th>Timestamp</th>
+              <th>Source</th>
+              <th>Destination</th>
+              <th>Proto</th>
+              <th>Alert Type</th>
+              <th>Severity</th>
+              <th>Risk</th>
+              <th>Status</th>
+              <th>Action</th>
+            </tr>
+          </thead>
+          <tbody id="alertsTableBody">
+            <tr><td colspan="10" style="text-align: center; color: #94a3b8;">Loading alerts...</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+    </div>
+
+    <!-- TAB 2: ALERTS QUEUE WITH FILTERS -->
+    <div id="tab-alerts" class="tab-pane" style="display: none;">
+      <div class="table-card">
+        <div class="chart-title" style="margin-bottom: 1rem;">
+          <span>SOC Security Alerts Triage Queue</span>
+          <div style="display: flex; gap: 0.5rem; align-items: center;">
+            <select id="filterSeverity" class="btn btn-secondary" style="padding: 0.3rem 0.6rem; font-size: 0.75rem;">
+              <option value="">All Severities</option>
+              <option value="CRITICAL">CRITICAL</option>
+              <option value="HIGH">HIGH</option>
+              <option value="MEDIUM">MEDIUM</option>
+              <option value="LOW">LOW</option>
+              <option value="INFO">INFO</option>
+            </select>
+            <select id="filterStatus" class="btn btn-secondary" style="padding: 0.3rem 0.6rem; font-size: 0.75rem;">
+              <option value="">All Statuses</option>
+              <option value="NEW">NEW</option>
+              <option value="INVESTIGATING">INVESTIGATING</option>
+              <option value="RESOLVED">RESOLVED</option>
+              <option value="FALSE_POSITIVE">FALSE_POSITIVE</option>
+            </select>
+            <input type="text" id="filterSearch" placeholder="Search IP or Alert..." class="btn btn-secondary" style="padding: 0.3rem 0.6rem; font-size: 0.75rem; width: 180px;">
+          </div>
+        </div>
+        <table class="soc-table">
+          <thead>
+            <tr>
+              <th>Alert ID</th>
+              <th>Timestamp</th>
+              <th>Source</th>
+              <th>Destination</th>
+              <th>Proto</th>
+              <th>Alert Type</th>
+              <th>Severity</th>
+              <th>Risk</th>
+              <th>Status</th>
+              <th>Action</th>
+            </tr>
+          </thead>
+          <tbody id="alertsTableBodyFull">
+            <!-- Mirrored with primary table -->
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- TAB 3: LIVE FLOW STREAM -->
+    <div id="tab-flows" class="tab-pane" style="display: none;">
+      <div class="table-card">
+        <div class="chart-title" style="margin-bottom: 1rem;">
+          <span>Live Ingested Network Flows</span>
+          <span style="font-size: 0.75rem; color: #94a3b8;">Real-time flow telemetry stream</span>
+        </div>
+        <table class="soc-table">
+          <thead>
+            <tr>
+              <th>Flow ID</th>
+              <th>Timestamp</th>
+              <th>Source</th>
+              <th>Destination</th>
+              <th>Protocol</th>
+              <th>Packets</th>
+              <th>Volume</th>
+              <th>Classification</th>
+              <th>Risk</th>
+            </tr>
+          </thead>
+          <tbody id="flowsTableBody">
+            <tr><td colspan="9" style="text-align: center; color: #94a3b8;">Loading flow stream...</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- TAB 4: DETECTION SIGNATURES / RULES -->
+    <div id="tab-rules" class="tab-pane" style="display: none;">
+      <div class="table-card">
+        <div class="chart-title" style="margin-bottom: 1rem;">
+          <span>Configured Signature Detection Rules</span>
+          <span style="font-size: 0.75rem; color: #94a3b8;">Defensive threshold management</span>
+        </div>
+        <table class="soc-table">
+          <thead>
+            <tr>
+              <th>Rule ID</th>
+              <th>Signature Name</th>
+              <th>Severity</th>
+              <th>Description</th>
+              <th>Active Thresholds</th>
+              <th>Toggle Action</th>
+            </tr>
+          </thead>
+          <tbody id="rulesTableBody">
+            <tr><td colspan="6" style="text-align: center; color: #94a3b8;">Loading rules...</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- TAB 5: SCENARIO GENERATOR -->
+    <div id="tab-scenarios" class="tab-pane" style="display: none;">
+      <div class="table-card">
+        <div class="chart-title" style="margin-bottom: 1rem;">
+          <span>Defensive Security Scenario Injection Lab</span>
+        </div>
+        <p style="color: #94a3b8; font-size: 0.9rem; margin-bottom: 1.25rem;">
+          Inject isolated synthetic flow patterns to test signature matching, statistical anomaly scoring, and ML inference.
+          All tests use documentation IP ranges (RFC 5737) and represent mathematical flow models only.
+        </p>
+
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 1rem;">
+          <div class="metric-card">
+            <div style="font-weight: 700; color: #10b981; margin-bottom: 0.25rem;">Scenario A: Normal HTTPS Browsing</div>
+            <p style="font-size: 0.8rem; color: #94a3b8; margin-bottom: 0.75rem;">Standard port 443 web session with baseline packet distribution.</p>
+            <button class="btn btn-secondary" onclick="triggerScenario('NORMAL_WEB')">Inject Normal HTTPS Flow</button>
+          </div>
+          <div class="metric-card">
+            <div style="font-weight: 700; color: #10b981; margin-bottom: 0.25rem;">Scenario B: Normal DNS Query</div>
+            <p style="font-size: 0.8rem; color: #94a3b8; margin-bottom: 0.75rem;">Standard UDP port 53 query-response exchange.</p>
+            <button class="btn btn-secondary" onclick="triggerScenario('NORMAL_DNS')">Inject Normal DNS Flow</button>
+          </div>
+          <div class="metric-card">
+            <div style="font-weight: 700; color: #f97316; margin-bottom: 0.25rem;">Scenario C: Repeated Failed Connections</div>
+            <p style="font-size: 0.8rem; color: #94a3b8; margin-bottom: 0.75rem;">Simulates authentication brute-force pattern with high failure ratio.</p>
+            <button class="btn btn-secondary" onclick="triggerScenario('REPEATED_FAILED_CONNECTIONS')">Inject Failed Conns Pattern</button>
+          </div>
+          <div class="metric-card">
+            <div style="font-weight: 700; color: #ef4444; margin-bottom: 0.25rem;">Scenario D: Excessive Connection Rate</div>
+            <p style="font-size: 0.8rem; color: #94a3b8; margin-bottom: 0.75rem;">Bursty flow rate exceeding 25 conns/second baseline.</p>
+            <button class="btn btn-secondary" onclick="triggerScenario('HIGH_CONNECTION_RATE')">Inject High Rate Pattern</button>
+          </div>
+          <div class="metric-card">
+            <div style="font-weight: 700; color: #f59e0b; margin-bottom: 0.25rem;">Scenario E: Multi-Port Probing Pattern</div>
+            <p style="font-size: 0.8rem; color: #94a3b8; margin-bottom: 0.75rem;">Reconnaissance simulation contacting high diversity of target ports.</p>
+            <button class="btn btn-secondary" onclick="triggerScenario('MULTI_PORT_PROBING_PATTERN')">Inject Multi-Port Probing</button>
+          </div>
+          <div class="metric-card">
+            <div style="font-weight: 700; color: #ef4444; margin-bottom: 0.25rem;">Scenario F: SYN-Heavy Statistical Pattern</div>
+            <p style="font-size: 0.8rem; color: #94a3b8; margin-bottom: 0.75rem;">Abnormal SYN-to-data packet ratio with minimal completions.</p>
+            <button class="btn btn-secondary" onclick="triggerScenario('SYN_HEAVY_PATTERN')">Inject SYN-Heavy Pattern</button>
+          </div>
+          <div class="metric-card">
+            <div style="font-weight: 700; color: #8b5cf6; margin-bottom: 0.25rem;">Scenario G: Abnormally High Traffic Volume</div>
+            <p style="font-size: 0.8rem; color: #94a3b8; margin-bottom: 0.75rem;">Large volumetric throughput burst exceeding 500 KB / 200 KB/s.</p>
+            <button class="btn btn-secondary" onclick="triggerScenario('HIGH_TRAFFIC_VOLUME')">Inject High Volume Pattern</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- EVENT INVESTIGATION MODAL (DRAWER) -->
+  <div id="investigationModal" class="modal-overlay">
+    <div class="modal-content">
+      <div class="modal-header">
+        <div>
+          <h2 id="modalAlertId" style="font-size: 1.25rem; font-weight: 700; color: #fff;">Investigating Alert</h2>
+          <span style="font-size: 0.75rem; color: #06b6d4;">SOC Tier-1 Defensive Event Dossier</span>
+        </div>
+        <button class="modal-close" onclick="closeInvestigation()">&times;</button>
+      </div>
+
+      <!-- Key Alert Details Grid -->
+      <div class="investigation-grid">
+        <div class="info-item">
+          <div class="info-item-label">Alert Identifier</div>
+          <div class="info-item-val" id="invAlertId">-</div>
+        </div>
+        <div class="info-item">
+          <div class="info-item-label">Timestamp (UTC)</div>
+          <div class="info-item-val" id="invTimestamp">-</div>
+        </div>
+        <div class="info-item">
+          <div class="info-item-label">Source Host</div>
+          <div class="info-item-val" id="invSource">-</div>
+        </div>
+        <div class="info-item">
+          <div class="info-item-label">Destination Host</div>
+          <div class="info-item-val" id="invDestination">-</div>
+        </div>
+        <div class="info-item">
+          <div class="info-item-label">Detection Rule</div>
+          <div class="info-item-val" id="invRule">-</div>
+        </div>
+        <div class="info-item">
+          <div class="info-item-label">Alert Type</div>
+          <div class="info-item-val" id="invType">-</div>
+        </div>
+        <div class="info-item">
+          <div class="info-item-label">Severity Level</div>
+          <div class="info-item-val"><span id="invSeverity" class="badge badge-high">HIGH</span></div>
+        </div>
+        <div class="info-item">
+          <div class="info-item-label">Composite Risk Score</div>
+          <div class="info-item-val" id="invRiskScore" style="color: #ef4444;">-</div>
+        </div>
+      </div>
+
+      <!-- Description & Flow Metrics -->
+      <div class="info-item" style="margin-bottom: 1.25rem;">
+        <div class="info-item-label">Detection Reason / Evidence</div>
+        <div class="info-item-val" id="invDescription" style="font-weight: 400; font-size: 0.9rem; color: #cbd5e1; margin-top: 0.35rem;">-</div>
+        <div style="display: flex; gap: 1.5rem; margin-top: 0.75rem; font-size: 0.8rem; color: #94a3b8; border-top: 1px solid #1e293b; padding-top: 0.5rem;">
+          <span>Packets: <strong id="invPackets" style="color: #f1f5f9;">-</strong></span>
+          <span>Bytes: <strong id="invBytes" style="color: #f1f5f9;">-</strong></span>
+          <span>Duration: <strong id="invDuration" style="color: #f1f5f9;">-</strong></span>
+          <span>Scenario: <strong id="invScenario" style="color: #f1f5f9;">-</strong></span>
+        </div>
+      </div>
+
+      <!-- Defensive SOP Investigation Recommendations -->
+      <div class="sop-box">
+        <strong style="color: #38bdf8; font-size: 0.9rem;">Defensive SOC Investigation Playbook Recommendations:</strong>
+        <ol id="invSopList"></ol>
+      </div>
+
+      <!-- Status Triage Selector -->
+      <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 1.25rem; background: #0f172a; padding: 0.75rem 1rem; border-radius: 6px; border: 1px solid #1e293b;">
+        <span style="font-size: 0.85rem; font-weight: 600;">Incident Triage Status:</span>
+        <div style="display: flex; gap: 0.5rem;">
+          <select id="invStatusSelect" class="btn btn-secondary" style="padding: 0.4rem 0.75rem;">
+            <option value="NEW">NEW</option>
+            <option value="INVESTIGATING">INVESTIGATING</option>
+            <option value="RESOLVED">RESOLVED</option>
+            <option value="FALSE_POSITIVE">FALSE_POSITIVE</option>
+          </select>
+          <button class="btn btn-primary" onclick="updateAlertStatusFromModal()">Update Status</button>
+        </div>
+      </div>
+
+      <!-- Analyst Investigation Notes -->
+      <div>
+        <div style="font-size: 0.9rem; font-weight: 600; margin-bottom: 0.5rem;">Analyst Notes &amp; Audit Trail:</div>
+        <div id="invNotesContainer" style="max-height: 140px; overflow-y: auto; margin-bottom: 0.75rem;"></div>
+
+        <div style="display: flex; gap: 0.5rem;">
+          <input type="text" id="invNewNote" placeholder="Add investigation findings or justification notes..." class="btn btn-secondary" style="flex: 1; text-align: left; padding: 0.5rem 0.85rem;">
+          <button class="btn btn-primary" onclick="submitAnalystNote()">Append Note</button>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- Notification Toast -->
+  <div id="socToast" style="display: none; position: fixed; bottom: 20px; right: 20px; background: #0284c7; color: #fff; padding: 0.75rem 1.25rem; border-radius: 6px; font-weight: 600; box-shadow: 0 4px 15px rgba(0,0,0,0.5); z-index: 200;"></div>
+
+  <!-- Application Logic Scripts -->
+  <script src="/static/js/charts.js"></script>
+  <script src="/static/js/investigation.js"></script>
+  <script src="/static/js/app.js"></script>
+
+</body>
+</html>

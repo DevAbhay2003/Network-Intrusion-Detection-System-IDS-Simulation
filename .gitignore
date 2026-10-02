@@ -1,0 +1,30 @@
+# Python bytecode and cache
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.pytest_cache/
+
+# Environments
+.env
+.venv
+env/
+venv/
+ENV/
+
+# Database files
+*.db
+*.sqlite3
+backend/ids_database.db
+
+# Model artifacts and binary dumps (keep sample models if small, ignore large checkpoints)
+*.pkl
+*.joblib
+!models/.gitkeep
+
+# Logs and OS files
+*.log
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
