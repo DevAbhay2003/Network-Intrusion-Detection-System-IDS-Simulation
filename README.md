@@ -485,7 +485,7 @@ pytest tests/test_ids.py -v
 
 ## Visual Screenshots & Proof Catalog
 
-Refer to [screenshots/README.md](screenshots/README.md) for the complete 27-item visual proof catalog.
+Refer to [screenshots](screenshots) for the visual proof catalog.
 
 ---
 
